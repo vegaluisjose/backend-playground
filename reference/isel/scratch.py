@@ -13,3 +13,7 @@ block = []
 dst = instruction_select.select(code, tiles, block)
 for row in block:
     print(row)
+
+for node in code.postorder([]):
+    print(node)
+    print(node.tile.code)
