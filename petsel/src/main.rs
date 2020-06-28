@@ -1,7 +1,3 @@
-use petgraph::Graph;
-use petgraph::dot::{Dot, Config};
-use std::fs::File;
-use std::io::Write;
 use std::fmt;
 
 #[derive(Clone, Debug)]
@@ -23,44 +19,63 @@ impl fmt::Display for Opcode {
 
 #[derive(Clone, Debug)]
 pub struct Node {
+    cost: u128,
     opcode: Opcode,
+    operands: Vec<Node>,
     width: u64,
+    target: Option<String>,
 }
 
 impl Node {
-    pub fn new_input(width: u64) -> Node {
+    pub fn new_with_attrs(opcode: &Opcode, width: u64, cost: u128) -> Node {
         Node {
-            opcode: Opcode::Input,
-            width: width,
+            opcode: opcode.clone(),
+            operands: Vec::new(),
+            width: width.clone(),
+            cost: cost,
+            target: None,
         }
     }
 
-    pub fn new_op(op: Opcode, width: u64) -> Node {
-        Node {
-            opcode: op,
-            width: width,
+    pub fn change_cost(&mut self, cost: u128) -> &mut Node {
+        self.cost = cost;
+        self
+    }
+
+    pub fn push_operand(&mut self, operand: &Node) -> &mut Node {
+        self.operands.push(operand.clone());
+        self
+    }
+
+    pub fn was_visited(&self) -> bool {
+        match self.target {
+            None => false,
+            Some(_) => true,
         }
     }
-}
 
-impl fmt::Display for Node {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.opcode)
+    pub fn postorder(&self) -> Vec<Node> {
+        let mut stack : Vec<Node> = Vec::new();
+        let mut res : Vec<Node> = Vec::new();
+        stack.push(self.clone());
+        while !stack.is_empty() {
+            let node = stack.pop().unwrap();
+            res.push(node.clone());
+            for operand in node.operands.iter() {
+                stack.push(operand.clone());
+            }
+        }
+        res.reverse();
+        res
     }
-}
-
-#[allow(dead_code)]
-fn write_dag(source: &Graph<Node, &str, petgraph::Directed>, name: &str) {
-    let mut f = File::create(format!("{}.dot", name)).expect("Error: creating the file");
-    let output = format!("{}", Dot::with_config(source, &[Config::EdgeNoLabel]));
-    f.write_all(&output.as_bytes()).expect("Error: writing to the file");
 }
 
 fn main() {
-    let mut dag : Graph<Node, _, petgraph::Directed> = Graph::new();
-    let input_a = dag.add_node(Node::new_input(8));
-    let input_b = dag.add_node(Node::new_input(8));
-    let add = dag.add_node(Node::new_op(Opcode::Add, 8));
-    dag.add_edge(input_a, add, "");
-    dag.add_edge(input_b, add, "");
+    let input_a = Node::new_with_attrs(&Opcode::Input, 8, 0);
+    let input_b = Node::new_with_attrs(&Opcode::Input, 8, 1);
+    let mut add = Node::new_with_attrs(&Opcode::Add, 8, 1);
+    add.push_operand(&input_a);
+    add.push_operand(&input_b);
+    let x = add.postorder();
+    println!("{:?}", x);
 }
