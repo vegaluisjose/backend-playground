@@ -49,6 +49,13 @@ impl fmt::Display for Node {
     }
 }
 
+#[allow(dead_code)]
+fn write_dag(source: &Graph<Node, &str, petgraph::Directed>, name: &str) {
+    let mut f = File::create(format!("{}.dot", name)).expect("Error: creating the file");
+    let output = format!("{}", Dot::with_config(source, &[Config::EdgeNoLabel]));
+    f.write_all(&output.as_bytes()).expect("Error: writing to the file");
+}
+
 fn main() {
     let mut dag : Graph<Node, _, petgraph::Directed> = Graph::new();
     let input_a = dag.add_node(Node::new_input(8));
@@ -56,8 +63,4 @@ fn main() {
     let add = dag.add_node(Node::new_op(Opcode::Add, 8));
     dag.add_edge(input_a, add, "");
     dag.add_edge(input_b, add, "");
-    println!("{:?}", Dot::with_config(&dag, &[Config::EdgeNoLabel]));
-    let mut f = File::create("example.dot").unwrap();
-    let output = format!("{}", Dot::with_config(&dag, &[Config::EdgeNoLabel]));
-    f.write_all(&output.as_bytes()).expect("could not write file");
 }
