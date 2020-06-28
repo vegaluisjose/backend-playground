@@ -2,18 +2,60 @@ use petgraph::Graph;
 use petgraph::dot::{Dot, Config};
 use std::fs::File;
 use std::io::Write;
+use std::fmt;
+
+#[derive(Clone, Debug)]
+pub enum Opcode {
+    Input,
+    Add,
+    Mul,
+}
+
+impl fmt::Display for Opcode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Opcode::Input => write!(f, "input"),
+            Opcode::Add => write!(f, "add"),
+            Opcode::Mul => write!(f, "mul"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Node {
+    opcode: Opcode,
+    width: u64,
+}
+
+impl Node {
+    pub fn new_input(width: u64) -> Node {
+        Node {
+            opcode: Opcode::Input,
+            width: width,
+        }
+    }
+
+    pub fn new_op(op: Opcode, width: u64) -> Node {
+        Node {
+            opcode: op,
+            width: width,
+        }
+    }
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.opcode)
+    }
+}
 
 fn main() {
-    let mut dag : Graph<&str, &str, petgraph::Directed> = Graph::new();
-    let a = dag.add_node("a");
-    let b = dag.add_node("b");
-    let c = dag.add_node("c");
-    let d = dag.add_node("d");
-    let e = dag.add_node("e");
-    dag.add_edge(a, b, "");
-    dag.add_edge(a, c, "");
-    dag.add_edge(b, d, "");
-    dag.add_edge(b, e, "");
+    let mut dag : Graph<Node, _, petgraph::Directed> = Graph::new();
+    let input_a = dag.add_node(Node::new_input(8));
+    let input_b = dag.add_node(Node::new_input(8));
+    let add = dag.add_node(Node::new_op(Opcode::Add, 8));
+    dag.add_edge(input_a, add, "");
+    dag.add_edge(input_b, add, "");
     println!("{:?}", Dot::with_config(&dag, &[Config::EdgeNoLabel]));
     let mut f = File::create("example.dot").unwrap();
     let output = format!("{}", Dot::with_config(&dag, &[Config::EdgeNoLabel]));
