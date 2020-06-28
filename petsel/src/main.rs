@@ -1,5 +1,5 @@
-use std::rc::Rc;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum Opcode {
@@ -75,8 +75,8 @@ impl Node {
     }
 
     pub fn postorder(&self) -> Vec<Node> {
-        let mut stack : Vec<Node> = Vec::new();
-        let mut res : Vec<Node> = Vec::new();
+        let mut stack: Vec<Node> = Vec::new();
+        let mut res: Vec<Node> = Vec::new();
         stack.push(self.clone());
         while !stack.is_empty() {
             let node = stack.pop().unwrap();
@@ -92,7 +92,11 @@ impl Node {
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "opcode:{} loc:{} cost:{}", self.opcode, self.loc, self.cost)
+        write!(
+            f,
+            "opcode:{} loc:{} cost:{}",
+            self.opcode, self.loc, self.cost
+        )
     }
 }
 
