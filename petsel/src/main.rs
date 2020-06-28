@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Opcode {
     Input,
     Add,
@@ -11,7 +11,7 @@ impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Opcode::Input => write!(f, "input"),
-            Opcode::Add => write!(f, "lut_add"),
+            Opcode::Add => write!(f, "add"),
             Opcode::Mul => write!(f, "mul"),
         }
     }
@@ -43,6 +43,35 @@ pub struct Node {
     cost: u128,
     visited: bool,
 }
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        if self.opcode != other.opcode {
+            false
+        } else if self.width != other.width {
+            false
+        } else if self.operands.len() != other.operands.len() {
+            false
+        } else {
+            let mut eq = true;
+            for (a, b) in self.operands.iter().zip(other.operands.iter()) {
+                if a.opcode != b.opcode {
+                    eq = false;
+                    break;
+                } else if a.width != b.width {
+                    eq = false;
+                    break;
+                } else if a.operands.len() != b.operands.len() {
+                    eq = false;
+                    break;
+                }
+            }
+            eq
+        }
+    }
+}
+
+impl Eq for Node {}
 
 impl Node {
     pub fn new_with_attrs(opcode: &Opcode, width: u64, loc: &Loc, cost: u128) -> Node {
@@ -107,4 +136,5 @@ fn main() {
     let mut patterns: Vec<Node> = Vec::new();
     patterns.push(input.clone());
     patterns.push(dsp_add.clone());
+    println!("{}", dsp_add == lut_add);
 }
