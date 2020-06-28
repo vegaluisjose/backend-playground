@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::fmt;
 
 #[derive(Clone, Debug)]
@@ -18,22 +19,41 @@ impl fmt::Display for Opcode {
 }
 
 #[derive(Clone, Debug)]
+pub enum Loc {
+    IO,
+    Dsp,
+    Lut,
+}
+
+impl fmt::Display for Loc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Loc::IO => write!(f, "io"),
+            Loc::Dsp => write!(f, "dsp"),
+            Loc::Lut => write!(f, "lut"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Node {
-    cost: u128,
     opcode: Opcode,
     operands: Vec<Node>,
     width: u64,
-    target: Option<String>,
+    loc: Loc,
+    cost: u128,
+    codegen: Option<Rc<Node>>,
 }
 
 impl Node {
-    pub fn new_with_attrs(opcode: &Opcode, width: u64, cost: u128) -> Node {
+    pub fn new_with_attrs(opcode: &Opcode, width: u64, loc: &Loc, cost: u128) -> Node {
         Node {
             opcode: opcode.clone(),
             operands: Vec::new(),
             width: width.clone(),
+            loc: loc.clone(),
             cost: cost,
-            target: None,
+            codegen: None,
         }
     }
 
@@ -48,7 +68,7 @@ impl Node {
     }
 
     pub fn was_visited(&self) -> bool {
-        match self.target {
+        match self.codegen {
             None => false,
             Some(_) => true,
         }
@@ -70,12 +90,20 @@ impl Node {
     }
 }
 
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "opcode:{} loc:{} cost:{}", self.opcode, self.loc, self.cost)
+    }
+}
+
 fn main() {
-    let input_a = Node::new_with_attrs(&Opcode::Input, 8, 0);
-    let input_b = Node::new_with_attrs(&Opcode::Input, 8, 1);
-    let mut add = Node::new_with_attrs(&Opcode::Add, 8, 1);
+    let input_a = Node::new_with_attrs(&Opcode::Input, 8, &Loc::IO, 0);
+    let input_b = Node::new_with_attrs(&Opcode::Input, 8, &Loc::IO, 1);
+    let mut add = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Lut, 4);
     add.push_operand(&input_a);
     add.push_operand(&input_b);
-    let x = add.postorder();
-    println!("{:?}", x);
+    let rev = add.postorder();
+    for node in rev.iter() {
+        println!("{}", node);
+    }
 }
