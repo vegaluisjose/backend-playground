@@ -1,5 +1,4 @@
 use std::fmt;
-use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum Opcode {
@@ -12,7 +11,7 @@ impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Opcode::Input => write!(f, "input"),
-            Opcode::Add => write!(f, "add"),
+            Opcode::Add => write!(f, "lut_add"),
             Opcode::Mul => write!(f, "mul"),
         }
     }
@@ -42,7 +41,7 @@ pub struct Node {
     width: u64,
     loc: Loc,
     cost: u128,
-    codegen: Option<Rc<Node>>,
+    visited: bool,
 }
 
 impl Node {
@@ -53,7 +52,7 @@ impl Node {
             width: width.clone(),
             loc: loc.clone(),
             cost: cost,
-            codegen: None,
+            visited: false,
         }
     }
 
@@ -68,10 +67,7 @@ impl Node {
     }
 
     pub fn was_visited(&self) -> bool {
-        match self.codegen {
-            None => false,
-            Some(_) => true,
-        }
+        self.visited
     }
 
     pub fn postorder(&self) -> Vec<Node> {
@@ -101,13 +97,14 @@ impl fmt::Display for Node {
 }
 
 fn main() {
-    let input_a = Node::new_with_attrs(&Opcode::Input, 8, &Loc::IO, 0);
-    let input_b = Node::new_with_attrs(&Opcode::Input, 8, &Loc::IO, 1);
-    let mut add = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Lut, 4);
-    add.push_operand(&input_a);
-    add.push_operand(&input_b);
-    let rev = add.postorder();
-    for node in rev.iter() {
-        println!("{}", node);
-    }
+    let input = Node::new_with_attrs(&Opcode::Input, 8, &Loc::IO, 0);
+    let mut lut_add = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Lut, 4);
+    let mut dsp_add = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Dsp, 1);
+    dsp_add.push_operand(&input);
+    dsp_add.push_operand(&input);
+    lut_add.push_operand(&input);
+    lut_add.push_operand(&input);
+    let mut patterns: Vec<Node> = Vec::new();
+    patterns.push(input.clone());
+    patterns.push(dsp_add.clone());
 }
