@@ -19,6 +19,7 @@ impl fmt::Display for Opcode {
 
 #[derive(Clone, Debug)]
 pub enum Loc {
+    Placeholder,
     IO,
     Dsp,
     Lut,
@@ -27,6 +28,7 @@ pub enum Loc {
 impl fmt::Display for Loc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Loc::Placeholder => write!(f, "??"),
             Loc::IO => write!(f, "io"),
             Loc::Dsp => write!(f, "dsp"),
             Loc::Lut => write!(f, "lut"),
@@ -41,7 +43,6 @@ pub struct Node {
     width: u64,
     loc: Loc,
     cost: u128,
-    visited: bool,
 }
 
 impl PartialEq for Node {
@@ -81,7 +82,6 @@ impl Node {
             width: width.clone(),
             loc: loc.clone(),
             cost: cost,
-            visited: false,
         }
     }
 
@@ -95,8 +95,11 @@ impl Node {
         self
     }
 
-    pub fn was_visited(&self) -> bool {
-        self.visited
+    pub fn has_placeholder(&self) -> bool {
+        match self.loc {
+            Loc::Placeholder => true,
+            _ => false,
+        }
     }
 
     pub fn postorder(&self) -> Vec<Node> {
@@ -133,18 +136,52 @@ impl fmt::Display for Node {
     }
 }
 
+fn instruction_selection(code: &Node, patterns: &Vec<Node>) -> Vec<Node> {
+    let mut codegen: Vec<Node> = Vec::new();
+    for instr in code.postorder().iter() {
+        let mut best = u128::max_value();
+        let mut found = false;
+        for pat in patterns.iter() {
+            if instr == pat {
+                if best == u128::max_value() {
+                    best = instr.estimate();
+                }
+                let cost = pat.estimate();
+                if cost < best && instr.has_placeholder() {
+                    if found {
+                        codegen.pop().unwrap();
+                    }
+                    codegen.push(pat.clone());
+                    found = true;
+                    best = cost;
+                }
+            }
+        }
+        if !found {
+            codegen.push(instr.clone());
+        }
+    }
+    codegen
+}
+
 fn main() {
     let input = Node::new_with_attrs(&Opcode::Input, 8, &Loc::IO, 0);
-    let mut lut_add = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Lut, 4);
+    let mut code = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Placeholder, u128::max_value());
     let mut dsp_add = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Dsp, 1);
     dsp_add.push_operand(&input);
     dsp_add.push_operand(&input);
-    lut_add.push_operand(&input);
-    lut_add.push_operand(&input);
+    code.push_operand(&input);
+    code.push_operand(&input);
     let mut patterns: Vec<Node> = Vec::new();
     patterns.push(input.clone());
     patterns.push(dsp_add.clone());
-    println!("{}", lut_add);
-    println!("{}", dsp_add);
-    println!("{}", dsp_add.estimate());
+    let codegen = instruction_selection(&code, &patterns);
+    println!("Before opt");
+    for i in code.postorder().iter() {
+        println!("{}", i);
+    }
+    println!("After opt");
+    for i in codegen.iter() {
+        println!("{}", i);
+    }
 }
