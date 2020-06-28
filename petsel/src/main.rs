@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Opcode {
-    Input,
+    Ref,
     Add,
     Mul,
     Reg,
@@ -11,7 +11,7 @@ pub enum Opcode {
 impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Opcode::Input => write!(f, "input"),
+            Opcode::Ref => write!(f, "ref"),
             Opcode::Add => write!(f, "add"),
             Opcode::Mul => write!(f, "mul"),
             Opcode::Reg => write!(f, "reg"),
@@ -22,7 +22,6 @@ impl fmt::Display for Opcode {
 #[derive(Clone, Debug)]
 pub enum Loc {
     Placeholder,
-    IO,
     Dsp,
     Lut,
 }
@@ -31,7 +30,6 @@ impl fmt::Display for Loc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Loc::Placeholder => write!(f, "??"),
-            Loc::IO => write!(f, "io"),
             Loc::Dsp => write!(f, "dsp"),
             Loc::Lut => write!(f, "lut"),
         }
@@ -167,7 +165,7 @@ fn instruction_selection(code: &Node, patterns: &Vec<Node>) -> Vec<Node> {
 }
 
 fn main() {
-    let input = Node::new_with_attrs(&Opcode::Input, 8, &Loc::IO, 0);
+    let input = Node::new_with_attrs(&Opcode::Ref, 8, &Loc::Placeholder, 0);
     let mut code = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Placeholder, u128::max_value());
     let mut dsp_add = Node::new_with_attrs(&Opcode::Add, 8, &Loc::Dsp, 1);
     dsp_add.push_operand(&input);
