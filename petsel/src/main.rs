@@ -113,6 +113,14 @@ impl Node {
         res.reverse();
         res
     }
+
+    pub fn estimate(&self) -> u128 {
+        let mut sum = self.cost;
+        for operand in self.operands.iter() {
+            sum += operand.estimate();
+        }
+        sum
+    }
 }
 
 impl fmt::Display for Node {
@@ -136,5 +144,7 @@ fn main() {
     let mut patterns: Vec<Node> = Vec::new();
     patterns.push(input.clone());
     patterns.push(dsp_add.clone());
-    println!("{}", dsp_add == lut_add);
+    println!("{}", lut_add);
+    println!("{}", dsp_add);
+    println!("{}", dsp_add.estimate());
 }
