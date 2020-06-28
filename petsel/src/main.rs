@@ -5,6 +5,7 @@ pub enum Opcode {
     Input,
     Add,
     Mul,
+    Reg,
 }
 
 impl fmt::Display for Opcode {
@@ -13,6 +14,7 @@ impl fmt::Display for Opcode {
             Opcode::Input => write!(f, "input"),
             Opcode::Add => write!(f, "add"),
             Opcode::Mul => write!(f, "mul"),
+            Opcode::Reg => write!(f, "reg"),
         }
     }
 }
