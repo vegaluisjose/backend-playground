@@ -2,8 +2,6 @@ use std::rc::Rc;
 use std::fmt;
 use std::collections::HashMap;
 
-pub type DAG = HashMap<String, Node>;
-
 #[derive(Clone, Debug)]
 pub struct Node {
     name: String,
@@ -32,6 +30,14 @@ impl Node {
 
     pub fn change_cost(&mut self, cost: u128) {
         self.cost = cost;
+    }
+
+    pub fn change_lhs(&mut self, node: &Node) {
+        self.lhs = Some(Rc::new(node.clone()));
+    }
+
+    pub fn change_rhs(&mut self, node: &Node) {
+        self.rhs = Some(Rc::new(node.clone()));
     }
 
     pub fn is_isomorphic(&self, node: &Node) -> bool {
@@ -169,35 +175,41 @@ fn create_program() -> Prog {
     prog
 }
 
-fn create_dag_from_prog(prog: &Prog) -> DAG {
-    let mut dag = DAG::new();
+pub type DAG = HashMap<String, Node>;
+
+fn create_dag_from_prog(prog: &Prog, root: &str) -> DAG {
+    let mut tmp = DAG::new();
     for instr in prog.body.iter() {
-        if !dag.contains_key(&instr.lhs) {
+        if !tmp.contains_key(&instr.lhs) {
             let mut lhs = Node::new_with_name(&instr.lhs);
             lhs.change_opcode("ref");
             lhs.change_cost(0);
-            dag.insert(instr.lhs.to_string(), lhs.clone());
+            tmp.insert(instr.lhs.to_string(), lhs.clone());
         }
-        if !dag.contains_key(&instr.rhs) {
+        if !tmp.contains_key(&instr.rhs) {
             let mut rhs = Node::new_with_name(&instr.rhs);
             rhs.change_opcode("ref");
             rhs.change_cost(0);
-            dag.insert(instr.rhs.to_string(), rhs.clone());
+            tmp.insert(instr.rhs.to_string(), rhs.clone());
         }
-        if !dag.contains_key(&instr.dst) {
+        if !tmp.contains_key(&instr.dst) {
             let mut op = Node::new_with_name(&instr.dst);
             op.change_opcode(&instr.opcode);
             op.change_cost(instr.loc.cost());
-            dag.insert(instr.dst.to_string(), op.clone());
+            op.change_lhs(tmp.get(&instr.lhs).unwrap());
+            op.change_rhs(tmp.get(&instr.rhs).unwrap());
+            tmp.insert(instr.dst.to_string(), op.clone());
         }
     }
+    let mut dag = DAG::new();
+    dag.insert(root.to_string(), tmp.get(root).unwrap().clone());
     dag
 }
 
 fn main() {
     let prog = create_program();
     println!("{}", prog);
-    let dag = create_dag_from_prog(&prog);
+    let dag = create_dag_from_prog(&prog, "t1");
     for (_, value) in dag.iter() {
         println!("{:?}", value);
     }
