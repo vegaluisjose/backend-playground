@@ -57,6 +57,27 @@ impl Node {
             leq && req
         }
     }
+
+    // from https://rosettacode.org/wiki/Tree_traversal#Rust
+    pub fn iterative_postorder(&self) -> Vec<&Node> {
+        let mut stack: Vec<&Node> = Vec::new();
+        let mut res: Vec<&Node> = Vec::new();
+        stack.push(self);
+        while !stack.is_empty() {
+            let node = stack.pop().unwrap();
+            res.push(node);
+            match node.lhs {
+                None => {},
+                Some(ref n) => stack.push(n),
+            }
+            match node.rhs {
+                None => {},
+                Some(ref n) => stack.push(n),
+            }
+        }
+        res.reverse();
+        res
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -210,7 +231,8 @@ fn main() {
     let prog = create_program();
     println!("{}", prog);
     let dag = create_dag_from_prog(&prog, "t1");
-    for (_, value) in dag.iter() {
-        println!("{:?}", value);
+    let nodes = dag.get("t1").unwrap().iterative_postorder();
+    for n in nodes.iter() {
+        println!("name:{}", n.name);
     }
 }
