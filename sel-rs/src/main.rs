@@ -1,9 +1,13 @@
 use std::rc::Rc;
 use std::fmt;
+use std::collections::HashMap;
+
+pub type DAG = HashMap<String, Node>;
 
 #[derive(Clone, Debug)]
 pub struct Node {
     name: String,
+    opcode: Option<String>,
     lhs: Option<Rc<Node>>,
     rhs: Option<Rc<Node>>,
     value: Option<Instr>,
@@ -14,11 +18,16 @@ impl Node {
     pub fn new_with_name(name: &str) -> Node {
         Node {
             name: name.to_string(),
+            opcode: None,
             lhs: None,
             rhs: None,
             value: None,
             cost: 0,
         }
+    }
+
+    pub fn change_opcode(&mut self, opcode: &str) {
+        self.opcode = Some(opcode.to_string());
     }
 
     pub fn change_cost(&mut self, cost: u128) {
@@ -47,8 +56,18 @@ impl Node {
 #[derive(Clone, Debug)]
 pub enum Loc {
     Gen,
-    Dsp,
     Lut,
+    Dsp,
+}
+
+impl Loc {
+    pub fn cost(&self) -> u128 {
+        match self {
+            Loc::Gen => 3,
+            Loc::Lut => 2,
+            Loc::Dsp => 1,
+        }
+    }
 }
 
 impl fmt::Display for Loc {
@@ -150,7 +169,36 @@ fn create_program() -> Prog {
     prog
 }
 
+fn create_dag_from_prog(prog: &Prog) -> DAG {
+    let mut dag = DAG::new();
+    for instr in prog.body.iter() {
+        if !dag.contains_key(&instr.lhs) {
+            let mut lhs = Node::new_with_name(&instr.lhs);
+            lhs.change_opcode("ref");
+            lhs.change_cost(0);
+            dag.insert(instr.lhs.to_string(), lhs.clone());
+        }
+        if !dag.contains_key(&instr.rhs) {
+            let mut rhs = Node::new_with_name(&instr.rhs);
+            rhs.change_opcode("ref");
+            rhs.change_cost(0);
+            dag.insert(instr.rhs.to_string(), rhs.clone());
+        }
+        if !dag.contains_key(&instr.dst) {
+            let mut op = Node::new_with_name(&instr.dst);
+            op.change_opcode(&instr.opcode);
+            op.change_cost(instr.loc.cost());
+            dag.insert(instr.dst.to_string(), op.clone());
+        }
+    }
+    dag
+}
+
 fn main() {
     let prog = create_program();
     println!("{}", prog);
+    let dag = create_dag_from_prog(&prog);
+    for (_, value) in dag.iter() {
+        println!("{:?}", value);
+    }
 }
