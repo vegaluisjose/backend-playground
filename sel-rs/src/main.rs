@@ -272,10 +272,13 @@ fn add_pattern() -> Pattern {
     Pattern::new_with_opcode(Opcode::Add)
 }
 
+fn mul_pattern() -> Pattern {
+    Pattern::new_with_opcode(Opcode::Mul)
+}
+
 fn muladd_pattern() -> Pattern {
-    let mut add = Pattern::new_with_opcode(Opcode::Add);
-    let mul = Pattern::new_with_opcode(Opcode::Mul);
-    add.set_lhs(&mul);
+    let mut add = add_pattern();
+    add.set_lhs(&mul_pattern());
     add
 }
 
@@ -284,6 +287,7 @@ fn create_tiles() -> Vec<Tile> {
         Tile::new_with_attrs(muladd_pattern(), Loc::Dsp, 1),
         Tile::new_with_attrs(add_pattern(), Loc::Dsp, 2),
         Tile::new_with_attrs(add_pattern(), Loc::Lut, 3),
+        Tile::new_with_attrs(mul_pattern(), Loc::Dsp, 1),
     ]
 }
 
