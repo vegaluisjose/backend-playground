@@ -43,6 +43,7 @@ pub struct Node {
     loc: Loc,
     lhs: Option<Rc<Node>>,
     rhs: Option<Rc<Node>>,
+    tile: Option<Tile>,
 }
 
 impl Node {
@@ -53,6 +54,7 @@ impl Node {
             loc: loc,
             lhs: None,
             rhs: None,
+            tile: None,
         }
     }
 
