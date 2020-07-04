@@ -2,52 +2,53 @@ use std::rc::Rc;
 use std::fmt;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Opcode {
+    Ref,
+    Add,
+    Mul,
+}
+
+impl fmt::Display for Opcode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Opcode::Ref => write!(f, "ref"),
+            Opcode::Add => write!(f, "add"),
+            Opcode::Mul => write!(f, "mul"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Node {
     name: String,
-    opcode: Option<String>,
+    opcode: Opcode,
     lhs: Option<Rc<Node>>,
     rhs: Option<Rc<Node>>,
     value: Option<Instr>,
-    cost: u128,
 }
 
 impl Node {
-    pub fn new_with_name(name: &str) -> Node {
+    pub fn new_with_name_and_opcode(name: &str, opcode: Opcode) -> Node {
         Node {
             name: name.to_string(),
-            opcode: None,
+            opcode: opcode,
             lhs: None,
             rhs: None,
             value: None,
-            cost: 0,
         }
     }
 
-    pub fn change_opcode(&mut self, opcode: &str) {
-        self.opcode = Some(opcode.to_string());
-    }
-
-    pub fn change_cost(&mut self, cost: u128) {
-        self.cost = cost;
+    pub fn change_opcode(&mut self, opcode: Opcode) {
+        self.opcode = opcode;
     }
 
     pub fn change_lhs(&mut self, node: &Node) {
-        if let Some(op) = &node.opcode {
-            match op.as_ref() {
-                "ref" => (),
-                _ => self.lhs = Some(Rc::new(node.clone())),
-            }
-        }
+        self.lhs = Some(Rc::new(node.clone()));
     }
 
     pub fn change_rhs(&mut self, node: &Node) {
-        if let Some(op) = &node.opcode {
-            match op.as_ref() {
-                "ref" => (),
-                _ => self.rhs = Some(Rc::new(node.clone())),
-            }
-        }
+        self.rhs = Some(Rc::new(node.clone()));
     }
 
     pub fn is_part_equal(&self, node: &Node) -> bool {
@@ -119,7 +120,7 @@ impl fmt::Display for Loc {
 
 #[derive(Clone, Debug)]
 pub struct Instr {
-    opcode: String,
+    opcode: Opcode,
     dst: String,
     lhs: String,
     rhs: String,
@@ -127,9 +128,9 @@ pub struct Instr {
 }
 
 impl Instr {
-    pub fn new_gen_instr(opcode: &str, dst: &str, lhs: &str, rhs: &str) -> Instr {
+    pub fn new_gen_instr(opcode: Opcode, dst: &str, lhs: &str, rhs: &str) -> Instr {
         Instr {
-            opcode: opcode.to_string(),
+            opcode: opcode,
             dst: dst.to_string(),
             lhs: lhs.to_string(),
             rhs: rhs.to_string(),
@@ -137,9 +138,9 @@ impl Instr {
         }
     }
 
-    pub fn new_dsp_instr(opcode: &str, dst: &str, lhs: &str, rhs: &str) -> Instr {
+    pub fn new_dsp_instr(opcode: Opcode, dst: &str, lhs: &str, rhs: &str) -> Instr {
         Instr {
-            opcode: opcode.to_string(),
+            opcode: opcode,
             dst: dst.to_string(),
             lhs: lhs.to_string(),
             rhs: rhs.to_string(),
@@ -147,9 +148,9 @@ impl Instr {
         }
     }
 
-    pub fn new_lut_instr(opcode: &str, dst: &str, lhs: &str, rhs: &str) -> Instr {
+    pub fn new_lut_instr(opcode: Opcode, dst: &str, lhs: &str, rhs: &str) -> Instr {
         Instr {
-            opcode: opcode.to_string(),
+            opcode: opcode,
             dst: dst.to_string(),
             lhs: lhs.to_string(),
             rhs: rhs.to_string(),
@@ -176,15 +177,15 @@ impl Prog {
         }
     }
 
-    pub fn create_gen_instr(&mut self, opcode: &str, dst: &str, lhs: &str, rhs: &str) {
+    pub fn create_gen_instr(&mut self, opcode: Opcode, dst: &str, lhs: &str, rhs: &str) {
         self.body.push(Instr::new_gen_instr(opcode, dst, lhs, rhs));
     }
 
-    pub fn create_dsp_instr(&mut self, opcode: &str, dst: &str, lhs: &str, rhs: &str) {
+    pub fn create_dsp_instr(&mut self, opcode: Opcode, dst: &str, lhs: &str, rhs: &str) {
         self.body.push(Instr::new_dsp_instr(opcode, dst, lhs, rhs));
     }
 
-    pub fn create_lut_instr(&mut self, opcode: &str, dst: &str, lhs: &str, rhs: &str) {
+    pub fn create_lut_instr(&mut self, opcode: Opcode, dst: &str, lhs: &str, rhs: &str) {
         self.body.push(Instr::new_lut_instr(opcode, dst, lhs, rhs));
     }
 }
@@ -201,8 +202,8 @@ impl fmt::Display for Prog {
 
 fn create_program() -> Prog {
     let mut prog = Prog::new();
-    prog.create_gen_instr("mul", "t0", "a", "b");
-    prog.create_gen_instr("add", "t1", "t0", "c");
+    prog.create_gen_instr(Opcode::Mul, "t0", "a", "b");
+    prog.create_gen_instr(Opcode::Add, "t1", "t0", "c");
     prog
 }
 
@@ -212,21 +213,15 @@ fn create_dag_from_prog(prog: &Prog, root: &str) -> DAG {
     let mut tmp = DAG::new();
     for instr in prog.body.iter() {
         if !tmp.contains_key(&instr.lhs) {
-            let mut lhs = Node::new_with_name(&instr.lhs);
-            lhs.change_opcode("ref");
-            lhs.change_cost(0);
+            let lhs = Node::new_with_name_and_opcode(&instr.lhs, Opcode::Ref);
             tmp.insert(instr.lhs.to_string(), lhs.clone());
         }
         if !tmp.contains_key(&instr.rhs) {
-            let mut rhs = Node::new_with_name(&instr.rhs);
-            rhs.change_opcode("ref");
-            rhs.change_cost(0);
+            let rhs = Node::new_with_name_and_opcode(&instr.rhs, Opcode::Ref);
             tmp.insert(instr.rhs.to_string(), rhs.clone());
         }
         if !tmp.contains_key(&instr.dst) {
-            let mut op = Node::new_with_name(&instr.dst);
-            op.change_opcode(&instr.opcode);
-            op.change_cost(instr.loc.cost());
+            let mut op = Node::new_with_name_and_opcode(&instr.dst, instr.opcode.clone());
             op.change_lhs(tmp.get(&instr.lhs).unwrap());
             op.change_rhs(tmp.get(&instr.rhs).unwrap());
             tmp.insert(instr.dst.to_string(), op.clone());
@@ -237,34 +232,34 @@ fn create_dag_from_prog(prog: &Prog, root: &str) -> DAG {
     dag
 }
 
-fn create_binop_instr_pattern(opcode: &str, ty: Loc) -> Node {
-    let mut add = Node::new_with_name("y");
-    add.change_opcode(opcode);
-    add.change_cost(ty.cost());
-    add
-}
-
-fn create_patterns() -> Vec<Node> {
-    let mut pat: Vec<Node> = Vec::new();
-    pat.push(create_binop_instr_pattern("add", Loc::Lut));
-    pat.push(create_binop_instr_pattern("add", Loc::Dsp));
-    pat.push(create_binop_instr_pattern("mul", Loc::Lut));
-    pat.push(create_binop_instr_pattern("mul", Loc::Dsp));
-    pat
-}
+//fn create_binop_instr_pattern(opcode: &str, ty: Loc) -> Node {
+//    let mut add = Node::new_with_name_and_opcode("y");
+//    add.change_opcode(opcode);
+//    add.change_cost(ty.cost());
+//    add
+//}
+//
+//fn create_patterns() -> Vec<Node> {
+//    let mut pat: Vec<Node> = Vec::new();
+//    pat.push(create_binop_instr_pattern("add", Loc::Lut));
+//    pat.push(create_binop_instr_pattern("add", Loc::Dsp));
+//    pat.push(create_binop_instr_pattern("mul", Loc::Lut));
+//    pat.push(create_binop_instr_pattern("mul", Loc::Dsp));
+//    pat
+//}
 
 fn main() {
     let prog = create_program();
     println!("{}", prog);
     let dag = create_dag_from_prog(&prog, "t1");
     let nodes = dag.get("t1").unwrap().iterative_postorder();
-    let patterns = create_patterns();
+    //let patterns = create_patterns();
     for n in nodes.iter() {
         println!("n:{:?}", n);
-        for p in patterns.iter() {
-            if n.is_part_equal(p) {
-                println!("name:{} found match with:{:?}", n.name, p);
-            }
-        }
+        //for p in patterns.iter() {
+        //    if n.is_part_equal(p) {
+        //        println!("name:{} found match with:{:?}", n.name, p);
+        //    }
+        //}
     }
 }
