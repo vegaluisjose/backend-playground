@@ -7,6 +7,7 @@ pub enum Loc {
     Gen,
     Lut,
     Dsp,
+    Equal(String),
 }
 
 impl fmt::Display for Loc {
@@ -15,6 +16,7 @@ impl fmt::Display for Loc {
             Loc::Gen => write!(f, "??"),
             Loc::Dsp => write!(f, "dsp"),
             Loc::Lut => write!(f, "lut"),
+            Loc::Equal(n) => write!(f, "eq({})", n),
         }
     }
 }
@@ -40,10 +42,10 @@ impl fmt::Display for Opcode {
 pub struct Node {
     name: String,
     opcode: Opcode,
-    loc: Loc,
     lhs: Option<Rc<Node>>,
     rhs: Option<Rc<Node>>,
-    tile: Option<Tile>,
+    cur_loc: Loc,
+    new_loc: Option<Loc>,
 }
 
 impl Node {
@@ -51,10 +53,10 @@ impl Node {
         Node {
             name: name.to_string(),
             opcode: opcode,
-            loc: loc,
             lhs: None,
             rhs: None,
-            tile: None,
+            cur_loc: loc,
+            new_loc: None,
         }
     }
 
