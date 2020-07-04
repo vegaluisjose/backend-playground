@@ -33,25 +33,35 @@ impl Node {
     }
 
     pub fn change_lhs(&mut self, node: &Node) {
-        self.lhs = Some(Rc::new(node.clone()));
+        if let Some(op) = &node.opcode {
+            match op.as_ref() {
+                "ref" => (),
+                _ => self.lhs = Some(Rc::new(node.clone())),
+            }
+        }
     }
 
     pub fn change_rhs(&mut self, node: &Node) {
-        self.rhs = Some(Rc::new(node.clone()));
+        if let Some(op) = &node.opcode {
+            match op.as_ref() {
+                "ref" => (),
+                _ => self.rhs = Some(Rc::new(node.clone())),
+            }
+        }
     }
 
-    pub fn is_isomorphic(&self, node: &Node) -> bool {
-        if self.name != node.name {
+    pub fn is_part_equal(&self, node: &Node) -> bool {
+        if self.opcode != node.opcode { // we check for opcode only atm
             false
         } else {
             let leq = match (&self.lhs, node.lhs.as_ref()) {
                 (None, None) => true,
-                (Some(a), Some(b)) => a.is_isomorphic(&b),
+                (Some(a), Some(b)) => a.is_part_equal(&b),
                 _ => false,
             };
             let req = match (&self.rhs, node.rhs.as_ref()) {
                 (None, None) => true,
-                (Some(a), Some(b)) => a.is_isomorphic(&b),
+                (Some(a), Some(b)) => a.is_part_equal(&b),
                 _ => false,
             };
             leq && req
@@ -67,11 +77,11 @@ impl Node {
             let node = stack.pop().unwrap();
             res.push(node);
             match node.lhs {
-                None => {},
+                None => (),
                 Some(ref n) => stack.push(n),
             }
             match node.rhs {
-                None => {},
+                None => (),
                 Some(ref n) => stack.push(n),
             }
         }
@@ -196,7 +206,7 @@ fn create_program() -> Prog {
     prog
 }
 
-pub type DAG = HashMap<String, Node>;
+type DAG = HashMap<String, Node>;
 
 fn create_dag_from_prog(prog: &Prog, root: &str) -> DAG {
     let mut tmp = DAG::new();
@@ -227,12 +237,34 @@ fn create_dag_from_prog(prog: &Prog, root: &str) -> DAG {
     dag
 }
 
+fn create_binop_instr_pattern(opcode: &str, ty: Loc) -> Node {
+    let mut add = Node::new_with_name("y");
+    add.change_opcode(opcode);
+    add.change_cost(ty.cost());
+    add
+}
+
+fn create_patterns() -> Vec<Node> {
+    let mut pat: Vec<Node> = Vec::new();
+    pat.push(create_binop_instr_pattern("add", Loc::Lut));
+    pat.push(create_binop_instr_pattern("add", Loc::Dsp));
+    pat.push(create_binop_instr_pattern("mul", Loc::Lut));
+    pat.push(create_binop_instr_pattern("mul", Loc::Dsp));
+    pat
+}
+
 fn main() {
     let prog = create_program();
     println!("{}", prog);
     let dag = create_dag_from_prog(&prog, "t1");
     let nodes = dag.get("t1").unwrap().iterative_postorder();
+    let patterns = create_patterns();
     for n in nodes.iter() {
-        println!("name:{}", n.name);
+        println!("n:{:?}", n);
+        for p in patterns.iter() {
+            if n.is_part_equal(p) {
+                println!("name:{} found match with:{:?}", n.name, p);
+            }
+        }
     }
 }
