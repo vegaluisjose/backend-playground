@@ -2,6 +2,23 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
+#[derive(Clone, Debug)]
+pub enum Loc {
+    Gen,
+    Lut,
+    Dsp,
+}
+
+impl fmt::Display for Loc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Loc::Gen => write!(f, "??"),
+            Loc::Dsp => write!(f, "dsp"),
+            Loc::Lut => write!(f, "lut"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Opcode {
     Ref,
@@ -23,51 +40,28 @@ impl fmt::Display for Opcode {
 pub struct Node {
     name: String,
     opcode: Opcode,
+    loc: Loc,
     lhs: Option<Rc<Node>>,
     rhs: Option<Rc<Node>>,
-    value: Option<Instr>,
 }
 
 impl Node {
-    pub fn new_with_name_and_opcode(name: &str, opcode: Opcode) -> Node {
+    pub fn new_with_attrs(name: &str, opcode: Opcode, loc: Loc) -> Node {
         Node {
             name: name.to_string(),
             opcode: opcode,
+            loc: loc,
             lhs: None,
             rhs: None,
-            value: None,
         }
     }
 
-    pub fn change_opcode(&mut self, opcode: Opcode) {
-        self.opcode = opcode;
-    }
-
-    pub fn change_lhs(&mut self, node: &Node) {
+    pub fn set_lhs(&mut self, node: &Node) {
         self.lhs = Some(Rc::new(node.clone()));
     }
 
-    pub fn change_rhs(&mut self, node: &Node) {
+    pub fn set_rhs(&mut self, node: &Node) {
         self.rhs = Some(Rc::new(node.clone()));
-    }
-
-    pub fn is_part_equal(&self, node: &Node) -> bool {
-        if self.opcode != node.opcode {
-            // we check for opcode only atm
-            false
-        } else {
-            let leq = match (&self.lhs, node.lhs.as_ref()) {
-                (None, None) => true,
-                (Some(a), Some(b)) => a.is_part_equal(&b),
-                _ => false,
-            };
-            let req = match (&self.rhs, node.rhs.as_ref()) {
-                (None, None) => true,
-                (Some(a), Some(b)) => a.is_part_equal(&b),
-                _ => false,
-            };
-            leq && req
-        }
     }
 
     // from https://rosettacode.org/wiki/Tree_traversal#Rust
@@ -89,33 +83,6 @@ impl Node {
         }
         res.reverse();
         res
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Loc {
-    Gen,
-    Lut,
-    Dsp,
-}
-
-impl Loc {
-    pub fn cost(&self) -> u128 {
-        match self {
-            Loc::Gen => 3,
-            Loc::Lut => 2,
-            Loc::Dsp => 1,
-        }
-    }
-}
-
-impl fmt::Display for Loc {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Loc::Gen => write!(f, "??"),
-            Loc::Dsp => write!(f, "dsp"),
-            Loc::Lut => write!(f, "lut"),
-        }
     }
 }
 
@@ -216,21 +183,21 @@ fn create_dag_from_prog(prog: &Prog) -> DAG {
     let mut dag = DAG::new();
     for instr in prog.body.iter() {
         if !dag.contains_key(&instr.lhs) {
-            let lhs = Node::new_with_name_and_opcode(&instr.lhs, Opcode::Ref);
+            let lhs = Node::new_with_attrs(&instr.lhs, Opcode::Ref, instr.loc.clone());
             dag.insert(instr.lhs.to_string(), lhs.clone());
         }
         if !dag.contains_key(&instr.rhs) {
-            let rhs = Node::new_with_name_and_opcode(&instr.rhs, Opcode::Ref);
+            let rhs = Node::new_with_attrs(&instr.rhs, Opcode::Ref, instr.loc.clone());
             dag.insert(instr.rhs.to_string(), rhs.clone());
         }
         if !dag.contains_key(&instr.dst) {
-            let mut op = Node::new_with_name_and_opcode(&instr.dst, instr.opcode.clone());
-            op.change_lhs(&dag.remove(&instr.lhs).expect(&format!(
-                "Error: {} is not found, perhaps was used already",
+            let mut op = Node::new_with_attrs(&instr.dst, instr.opcode.clone(), instr.loc.clone());
+            op.set_lhs(&dag.remove(&instr.lhs).expect(&format!(
+                "Error: {} is not found, forward reference or was used already",
                 &instr.lhs
             )));
-            op.change_rhs(&dag.remove(&instr.rhs).expect(&format!(
-                "Error: {} is not found, perhaps was used already",
+            op.set_rhs(&dag.remove(&instr.rhs).expect(&format!(
+                "Error: {} is not found, forward reference or was used already",
                 &instr.rhs
             )));
             dag.insert(instr.dst.to_string(), op.clone());
@@ -238,6 +205,57 @@ fn create_dag_from_prog(prog: &Prog) -> DAG {
     }
     dag
 }
+
+#[derive(Clone, Debug)]
+pub struct Pattern {
+    opcode: Opcode,
+    lhs: Option<Rc<Pattern>>,
+    rhs: Option<Rc<Pattern>>,
+}
+
+impl Pattern {
+    pub fn new_with_opcode(opcode: Opcode) -> Pattern {
+        Pattern {
+            opcode: opcode,
+            lhs: None,
+            rhs: None,
+        }
+    }
+
+    pub fn set_lhs(&mut self, pattern: &Pattern) {
+        self.lhs = Some(Rc::new(pattern.clone()));
+    }
+
+    pub fn set_rhs(&mut self, pattern: &Pattern) {
+        self.rhs = Some(Rc::new(pattern.clone()));
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Tile {
+    pattern: Pattern,
+    cost: u128,
+    loc: Loc,
+}
+
+// pub fn is_part_equal(&self, node: &Node) -> bool {
+//     if self.opcode != node.opcode {
+//         // we check for opcode only atm
+//         false
+//     } else {
+//         let leq = match (&self.lhs, node.lhs.as_ref()) {
+//             (None, None) => true,
+//             (Some(a), Some(b)) => a.is_part_equal(&b),
+//             _ => false,
+//         };
+//         let req = match (&self.rhs, node.rhs.as_ref()) {
+//             (None, None) => true,
+//             (Some(a), Some(b)) => a.is_part_equal(&b),
+//             _ => false,
+//         };
+//         leq && req
+//     }
+// }
 
 fn main() {
     let prog = create_program();
