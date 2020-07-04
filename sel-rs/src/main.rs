@@ -229,33 +229,61 @@ impl Pattern {
     pub fn set_rhs(&mut self, pattern: &Pattern) {
         self.rhs = Some(Rc::new(pattern.clone()));
     }
+
+    pub fn is_match(&self, node: &Node) -> bool {
+        if self.opcode != node.opcode {
+            false
+        } else {
+            let lmatch = match (&self.lhs, node.lhs.as_ref()) {
+                (None, _) => true,
+                (Some(a), Some(b)) => a.is_match(&b),
+                _ => false,
+            };
+            let rmatch = match (&self.rhs, node.rhs.as_ref()) {
+                (None, _) => true,
+                (Some(a), Some(b)) => a.is_match(&b),
+                _ => false,
+            };
+            lmatch & rmatch
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Tile {
     pattern: Pattern,
-    cost: u128,
     loc: Loc,
+    cost: u128,
 }
 
-// pub fn is_part_equal(&self, node: &Node) -> bool {
-//     if self.opcode != node.opcode {
-//         // we check for opcode only atm
-//         false
-//     } else {
-//         let leq = match (&self.lhs, node.lhs.as_ref()) {
-//             (None, None) => true,
-//             (Some(a), Some(b)) => a.is_part_equal(&b),
-//             _ => false,
-//         };
-//         let req = match (&self.rhs, node.rhs.as_ref()) {
-//             (None, None) => true,
-//             (Some(a), Some(b)) => a.is_part_equal(&b),
-//             _ => false,
-//         };
-//         leq && req
-//     }
-// }
+impl Tile {
+    pub fn new_with_attrs(pattern: Pattern, loc: Loc, cost: u128) -> Tile {
+        Tile {
+            pattern: pattern,
+            loc: loc,
+            cost: cost,
+        }
+    }
+}
+
+fn add_pattern() -> Pattern {
+    Pattern::new_with_opcode(Opcode::Add)
+}
+
+fn muladd_pattern() -> Pattern {
+    let mut add = Pattern::new_with_opcode(Opcode::Add);
+    let mul = Pattern::new_with_opcode(Opcode::Mul);
+    add.set_lhs(&mul);
+    add
+}
+
+fn create_tiles() -> Vec<Tile> {
+    vec![
+        Tile::new_with_attrs(muladd_pattern(), Loc::Dsp, 1),
+        Tile::new_with_attrs(add_pattern(), Loc::Dsp, 2),
+        Tile::new_with_attrs(add_pattern(), Loc::Lut, 3),
+    ]
+}
 
 fn main() {
     let prog = create_program();
@@ -264,5 +292,9 @@ fn main() {
     let nodes = dag.get("t1").unwrap().iterative_postorder();
     for n in nodes.iter() {
         println!("n:{:?}", n);
+    }
+    let tiles = create_tiles();
+    for t in tiles.iter() {
+        println!("{:?}", t);
     }
 }
