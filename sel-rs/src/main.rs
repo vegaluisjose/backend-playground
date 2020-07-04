@@ -1,6 +1,6 @@
-use std::rc::Rc;
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
+use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Opcode {
@@ -52,7 +52,8 @@ impl Node {
     }
 
     pub fn is_part_equal(&self, node: &Node) -> bool {
-        if self.opcode != node.opcode { // we check for opcode only atm
+        if self.opcode != node.opcode {
+            // we check for opcode only atm
             false
         } else {
             let leq = match (&self.lhs, node.lhs.as_ref()) {
@@ -161,7 +162,11 @@ impl Instr {
 
 impl fmt::Display for Instr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {} {} @{}", self.opcode, self.dst, self.lhs, self.rhs, self.loc)
+        write!(
+            f,
+            "{} {} {} {} @{}",
+            self.opcode, self.dst, self.lhs, self.rhs, self.loc
+        )
     }
 }
 
@@ -172,9 +177,7 @@ pub struct Prog {
 
 impl Prog {
     pub fn new() -> Prog {
-        Prog {
-            body: Vec::new(),
-        }
+        Prog { body: Vec::new() }
     }
 
     pub fn create_gen_instr(&mut self, opcode: Opcode, dst: &str, lhs: &str, rhs: &str) {
@@ -222,8 +225,14 @@ fn create_dag_from_prog(prog: &Prog) -> DAG {
         }
         if !dag.contains_key(&instr.dst) {
             let mut op = Node::new_with_name_and_opcode(&instr.dst, instr.opcode.clone());
-            op.change_lhs(&dag.remove(&instr.lhs).expect(&format!("Error: {} is not found, perhaps was used already", &instr.lhs)));
-            op.change_rhs(&dag.remove(&instr.rhs).expect(&format!("Error: {} is not found, perhaps was used already", &instr.rhs)));
+            op.change_lhs(&dag.remove(&instr.lhs).expect(&format!(
+                "Error: {} is not found, perhaps was used already",
+                &instr.lhs
+            )));
+            op.change_rhs(&dag.remove(&instr.rhs).expect(&format!(
+                "Error: {} is not found, perhaps was used already",
+                &instr.rhs
+            )));
             dag.insert(instr.dst.to_string(), op.clone());
         }
     }
