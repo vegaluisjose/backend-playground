@@ -209,57 +209,33 @@ fn create_program() -> Prog {
 
 type DAG = HashMap<String, Node>;
 
-fn create_dag_from_prog(prog: &Prog, root: &str) -> DAG {
-    let mut tmp = DAG::new();
+fn create_dag_from_prog(prog: &Prog) -> DAG {
+    let mut dag = DAG::new();
     for instr in prog.body.iter() {
-        if !tmp.contains_key(&instr.lhs) {
+        if !dag.contains_key(&instr.lhs) {
             let lhs = Node::new_with_name_and_opcode(&instr.lhs, Opcode::Ref);
-            tmp.insert(instr.lhs.to_string(), lhs.clone());
+            dag.insert(instr.lhs.to_string(), lhs.clone());
         }
-        if !tmp.contains_key(&instr.rhs) {
+        if !dag.contains_key(&instr.rhs) {
             let rhs = Node::new_with_name_and_opcode(&instr.rhs, Opcode::Ref);
-            tmp.insert(instr.rhs.to_string(), rhs.clone());
+            dag.insert(instr.rhs.to_string(), rhs.clone());
         }
-        if !tmp.contains_key(&instr.dst) {
+        if !dag.contains_key(&instr.dst) {
             let mut op = Node::new_with_name_and_opcode(&instr.dst, instr.opcode.clone());
-            op.change_lhs(tmp.get(&instr.lhs).unwrap());
-            op.change_rhs(tmp.get(&instr.rhs).unwrap());
-            tmp.insert(instr.dst.to_string(), op.clone());
+            op.change_lhs(&dag.remove(&instr.lhs).expect(&format!("Error: {} is not found, perhaps was used already", &instr.lhs)));
+            op.change_rhs(&dag.remove(&instr.rhs).expect(&format!("Error: {} is not found, perhaps was used already", &instr.rhs)));
+            dag.insert(instr.dst.to_string(), op.clone());
         }
     }
-    let mut dag = DAG::new();
-    dag.insert(root.to_string(), tmp.get(root).unwrap().clone());
     dag
 }
-
-//fn create_binop_instr_pattern(opcode: &str, ty: Loc) -> Node {
-//    let mut add = Node::new_with_name_and_opcode("y");
-//    add.change_opcode(opcode);
-//    add.change_cost(ty.cost());
-//    add
-//}
-//
-//fn create_patterns() -> Vec<Node> {
-//    let mut pat: Vec<Node> = Vec::new();
-//    pat.push(create_binop_instr_pattern("add", Loc::Lut));
-//    pat.push(create_binop_instr_pattern("add", Loc::Dsp));
-//    pat.push(create_binop_instr_pattern("mul", Loc::Lut));
-//    pat.push(create_binop_instr_pattern("mul", Loc::Dsp));
-//    pat
-//}
 
 fn main() {
     let prog = create_program();
     println!("{}", prog);
-    let dag = create_dag_from_prog(&prog, "t1");
+    let dag = create_dag_from_prog(&prog);
     let nodes = dag.get("t1").unwrap().iterative_postorder();
-    //let patterns = create_patterns();
     for n in nodes.iter() {
         println!("n:{:?}", n);
-        //for p in patterns.iter() {
-        //    if n.is_part_equal(p) {
-        //        println!("name:{} found match with:{:?}", n.name, p);
-        //    }
-        //}
     }
 }
