@@ -8,6 +8,7 @@ pub enum Opcode {
     Add,
     Mul,
     Reg,
+    Any,
 }
 
 #[derive(Clone, Debug, PartialEq)]
