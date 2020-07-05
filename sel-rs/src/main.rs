@@ -2,13 +2,27 @@ use petgraph::prelude::Graph;
 use petgraph::visit::DfsPostOrder;
 use petgraph::dot::{Dot, Config};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Opcode {
     Ref,
     Add,
     Mul,
     Reg,
     Any,
+}
+
+impl PartialEq for Opcode {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Opcode::Any, _) => true,
+            (_, Opcode::Any) => true,
+            (Opcode::Ref, Opcode::Ref) => true,
+            (Opcode::Add, Opcode::Add) => true,
+            (Opcode::Mul, Opcode::Mul) => true,
+            (Opcode::Reg, Opcode::Reg) => true,
+            (_, _) => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
