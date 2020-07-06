@@ -89,6 +89,37 @@ impl Node {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Pattern {
+    pat: Vec<Opcode>,
+    cost: u128,
+    loc: Loc,
+}
+
+impl Pattern {
+    pub fn new(cost: u128, loc: Loc) -> Pattern {
+        Pattern {
+            pat: Vec::new(),
+            cost: cost,
+            loc: loc,
+        }
+    }
+
+    pub fn push_op(&mut self, op: Opcode) {
+        self.pat.push(op);
+    }
+}
+
+fn pat_0() -> Pattern {
+    let mut pat = Pattern::new(10, Loc::Dsp);
+    pat.push_op(Opcode::Any);
+    pat.push_op(Opcode::Any);
+    pat.push_op(Opcode::Mul);
+    pat.push_op(Opcode::Add);
+    pat.push_op(Opcode::Any);
+    pat
+}
+
 fn main() {
     let mut graph = Graph::<Node, ()>::new();
     let a = graph.add_node(Node::new_gen_ref("a"));
@@ -104,15 +135,29 @@ fn main() {
 
     println!("{:?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
 
-    let mut dfs = DfsPostOrder::new(&graph, t1);
+    //println!("{:?}", pat_0());
 
-    while let Some(visited) = dfs.next(&graph) {
-        if let Some(node) = graph.node_weight_mut(visited) {
-            if *node.opcode() == Opcode::Mul {
-                *node = Node::new_dsp_mul(node.name());
+    let mut main = DfsPostOrder::new(&graph, t1);
+
+    while let Some(a) = main.next(&graph) {
+        let mut sub = DfsPostOrder::new(&graph, a);
+        println!("Try a new pattern");
+        let p0 = pat_0();
+        let mut ops = p0.pat.iter();
+        while let Some(b) = sub.next(&graph) {
+            if let Some(c) = graph.node_weight(b) {
+                if let Some(d) = ops.next() {
+                    if c.opcode == *d {
+                        println!("found one, {:?} {:?}", c.opcode, d);
+                    }
+                }
             }
         }
+        //println!();
     }
-
-    println!("{:?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
+        //if let Some(node) = graph.node_weight_mut(visited) {
+        //    if *node.opcode() == Opcode::Mul {
+        //        *node = Node::new_dsp_mul(node.name());
+        //    }
+        //}
 }
