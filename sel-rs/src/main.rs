@@ -3,7 +3,7 @@ use petgraph::visit::DfsPostOrder;
 use petgraph::dot::{Dot, Config};
 
 #[derive(Clone, Debug)]
-pub enum Opcode {
+pub enum Op {
     Ref,
     Add,
     Mul,
@@ -11,122 +11,133 @@ pub enum Opcode {
     Any,
 }
 
-impl PartialEq for Opcode {
+impl PartialEq for Op {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Opcode::Any, _) => true,
-            (_, Opcode::Any) => true,
-            (Opcode::Ref, Opcode::Ref) => true,
-            (Opcode::Add, Opcode::Add) => true,
-            (Opcode::Mul, Opcode::Mul) => true,
-            (Opcode::Reg, Opcode::Reg) => true,
+            (Op::Any, _) => true,
+            (_, Op::Any) => true,
+            (Op::Ref, Op::Ref) => true,
+            (Op::Add, Op::Add) => true,
+            (Op::Mul, Op::Mul) => true,
+            (Op::Reg, Op::Reg) => true,
+            (_, _) => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Loc {
+    Gen,
+    Lut,
+    Dsp,
+    Any,
+}
+
+impl PartialEq for Loc {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Loc::Any, _) => true,
+            (_, Loc::Any) => true,
+            (Loc::Gen, Loc::Gen) => true,
+            (Loc::Lut, Loc::Lut) => true,
+            (Loc::Dsp, Loc::Dsp) => true,
             (_, _) => false,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Loc {
-    Gen,
-    Dsp,
-    Lut,
+pub struct PlacedOp {
+    op: Op,
+    loc: Loc,
+}
+
+impl PlacedOp{
+    pub fn new(op: Op, loc: Loc) -> PlacedOp {
+        PlacedOp {
+            op: op,
+            loc: loc,
+        }
+    }
+
+    pub fn new_gen_op(op: Op) -> PlacedOp {
+        PlacedOp {
+            op: op,
+            loc: Loc::Gen,
+        }
+    }
+
+    pub fn new_lut_op(op: Op) -> PlacedOp {
+        PlacedOp {
+            op: op,
+            loc: Loc::Lut,
+        }
+    }
+
+    pub fn new_dsp_op(op: Op) -> PlacedOp {
+        PlacedOp {
+            op: op,
+            loc: Loc::Dsp,
+        }
+    }
+
+    pub fn new_any_op(op: Op) -> PlacedOp {
+        PlacedOp {
+            op: op,
+            loc: Loc::Any,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Node {
     name: String,
-    opcode: Opcode,
-    loc: Loc,
+    placed_op: PlacedOp,
 }
 
 impl Node {
-    pub fn new(name: &str, opcode: Opcode, loc: Loc) -> Node {
+    pub fn new(name: &str, placed_op: PlacedOp) -> Node {
         Node {
             name: name.to_string(),
-            opcode: opcode,
-            loc: loc,
+            placed_op: placed_op,
         }
-    }
-
-    pub fn new_gen_ref(name: &str) -> Node {
-        Node {
-            name: name.to_string(),
-            opcode: Opcode::Ref,
-            loc: Loc::Gen,
-        }
-    }
-
-    pub fn new_gen_add(name: &str) -> Node {
-        Node {
-            name: name.to_string(),
-            opcode: Opcode::Add,
-            loc: Loc::Gen,
-        }
-    }
-
-    pub fn new_gen_mul(name: &str) -> Node {
-        Node {
-            name: name.to_string(),
-            opcode: Opcode::Mul,
-            loc: Loc::Gen,
-        }
-    }
-
-    pub fn new_dsp_mul(name: &str) -> Node {
-        Node {
-            name: name.to_string(),
-            opcode: Opcode::Mul,
-            loc: Loc::Dsp,
-        }
-    }
-
-    pub fn opcode(&self) -> &Opcode {
-        &self.opcode
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
-    pat: Vec<Opcode>,
-    cost: u128,
-    loc: Loc,
+    ops: Vec<PlacedOp>,
 }
 
 impl Pattern {
-    pub fn new(cost: u128, loc: Loc) -> Pattern {
+    pub fn new() -> Pattern {
         Pattern {
-            pat: Vec::new(),
-            cost: cost,
-            loc: loc,
+            ops: Vec::new(),
         }
     }
 
-    pub fn push_op(&mut self, op: Opcode) {
-        self.pat.push(op);
+    pub fn push_op(&mut self, op: PlacedOp) {
+        self.ops.push(op);
     }
 }
 
 fn pat_0() -> Pattern {
-    let mut pat = Pattern::new(10, Loc::Dsp);
-    pat.push_op(Opcode::Any);
-    pat.push_op(Opcode::Any);
-    pat.push_op(Opcode::Mul);
-    pat.push_op(Opcode::Any);
-    pat.push_op(Opcode::Add);
+    let mut pat = Pattern::new();
+    pat.push_op(PlacedOp::new_gen_op(Op::Any));
+    pat.push_op(PlacedOp::new_gen_op(Op::Any));
+    pat.push_op(PlacedOp::new_gen_op(Op::Mul));
+    pat.push_op(PlacedOp::new_gen_op(Op::Any));
+    pat.push_op(PlacedOp::new_gen_op(Op::Add));
     pat
 }
 
 fn main() {
     let mut graph = Graph::<Node, ()>::new();
-    let a = graph.add_node(Node::new_gen_ref("a"));
-    let b = graph.add_node(Node::new_gen_ref("b"));
-    let c = graph.add_node(Node::new_gen_ref("c"));
-    let t0 = graph.add_node(Node::new_gen_mul("t0"));
-    let t1 = graph.add_node(Node::new_gen_add("t1"));
+    let a = graph.add_node(Node::new("a", PlacedOp::new_gen_op(Op::Ref)));
+    let b = graph.add_node(Node::new("b", PlacedOp::new_gen_op(Op::Ref)));
+    let c = graph.add_node(Node::new("c", PlacedOp::new_gen_op(Op::Ref)));
+    let t0 = graph.add_node(Node::new("t0", PlacedOp::new_gen_op(Op::Mul)));
+    let t1 = graph.add_node(Node::new("t1", PlacedOp::new_gen_op(Op::Add)));
 
     graph.add_edge(t0, a, ());
     graph.add_edge(t0, b, ());
@@ -138,14 +149,14 @@ fn main() {
     let mut root = DfsPostOrder::new(&graph, t1);
     while let Some(idx) = root.next(&graph) {
         let p0 = pat_0();
-        let mut pat_ops = p0.pat.iter();
+        let mut pat_ops = p0.ops.iter();
         // check if there is a pattern match
         let mut pat_match: bool = true;
         let mut subgraph = DfsPostOrder::new(&graph, idx);
         while let Some(pat_op) = pat_ops.next() {
             if let Some(sub_idx) = subgraph.next(&graph) {
                 if let Some(node) = graph.node_weight(sub_idx) {
-                    if node.opcode != *pat_op {
+                    if node.placed_op != *pat_op {
                         pat_match = false;
                     }
                 }
