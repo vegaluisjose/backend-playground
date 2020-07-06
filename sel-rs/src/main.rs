@@ -115,8 +115,8 @@ fn pat_0() -> Pattern {
     pat.push_op(Opcode::Any);
     pat.push_op(Opcode::Any);
     pat.push_op(Opcode::Mul);
-    pat.push_op(Opcode::Add);
     pat.push_op(Opcode::Any);
+    pat.push_op(Opcode::Add);
     pat
 }
 
@@ -135,29 +135,29 @@ fn main() {
 
     println!("{:?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
 
-    //println!("{:?}", pat_0());
-
-    let mut main = DfsPostOrder::new(&graph, t1);
-
-    while let Some(a) = main.next(&graph) {
-        let mut sub = DfsPostOrder::new(&graph, a);
-        println!("Try a new pattern");
+    let mut root = DfsPostOrder::new(&graph, t1);
+    while let Some(idx) = root.next(&graph) {
         let p0 = pat_0();
-        let mut ops = p0.pat.iter();
-        while let Some(b) = sub.next(&graph) {
-            if let Some(c) = graph.node_weight(b) {
-                if let Some(d) = ops.next() {
-                    if c.opcode == *d {
-                        println!("found one, {:?} {:?}", c.opcode, d);
+        let mut pat_ops = p0.pat.iter();
+        // check if there is a pattern match
+        let mut pat_match: bool = true;
+        let mut subgraph = DfsPostOrder::new(&graph, idx);
+        while let Some(pat_op) = pat_ops.next() {
+            if let Some(sub_idx) = subgraph.next(&graph) {
+                if let Some(node) = graph.node_weight(sub_idx) {
+                    if node.opcode != *pat_op {
+                        pat_match = false;
                     }
                 }
+            } else {
+                pat_match = false;
+                break;
             }
         }
-        //println!();
+        if pat_match && pat_ops.len() == 0 { // check all nodes in the pattern
+            if let Some(node) = graph.node_weight(idx) {
+                println!("This node is a candidate: {:?}", node);
+            }
+        }
     }
-        //if let Some(node) = graph.node_weight_mut(visited) {
-        //    if *node.opcode() == Opcode::Mul {
-        //        *node = Node::new_dsp_mul(node.name());
-        //    }
-        //}
 }
